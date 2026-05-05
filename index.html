@@ -181,6 +181,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Mon
 .nudge-btn.fine{font-size:13px;width:34px;height:52px;color:var(--text2);border-color:var(--border2);}
 .bpm-center{display:flex;flex-direction:column;align-items:center;flex:1;}
 .bpm-big{font-family:'Playfair Display',serif;font-size:54px;font-weight:700;line-height:1;letter-spacing:-2px;}
+.bpm-big.enterable{cursor:pointer;text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--border);}
+.bpm-input-wrap{display:none;flex-direction:column;align-items:center;gap:6px;width:100%;}
+.bpm-input-wrap.show{display:flex;}
+.bpm-manual-input{font-family:'Playfair Display',serif;font-size:48px;font-weight:700;width:120px;text-align:center;background:transparent;border:none;border-bottom:2px solid var(--border);color:var(--text);padding:0;}
+.bpm-manual-input:focus{outline:none;border-bottom-color:var(--text);}
+.bpm-manual-btns{display:flex;gap:8px;}
+.bpm-manual-btns button{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:6px 14px;border-radius:var(--r);border:0.5px solid var(--border);background:transparent;color:var(--text);cursor:pointer;}
+.bpm-manual-btns .primary{background:var(--text);color:var(--bg);border-color:var(--text);}
 .bpm-unit{font-size:9px;letter-spacing:3px;color:var(--text2);text-transform:uppercase;}
 
 /* Save row */
@@ -328,11 +336,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Mon
           <button class="nudge-btn fine" onclick="nudgeFine(-5)">−5</button>
           <button class="nudge-btn" onclick="nudge(-1)">&#8722;</button>
           <div class="bpm-center">
-            <div class="bpm-big" id="bpmDisplay">120</div>
+            <div class="bpm-big" id="bpmDisplay" onclick="onBpmDisplayTap()">120</div>
             <div class="bpm-unit">BPM</div>
           </div>
           <button class="nudge-btn" onclick="nudge(1)">&#43;</button>
           <button class="nudge-btn fine" onclick="nudgeFine(5)">+5</button>
+        </div>
+        <div class="bpm-input-wrap" id="bpmInputWrap">
+          <input class="bpm-manual-input" id="bpmManualInput" type="number" min="20" max="300" placeholder="120" onkeydown="if(event.key==='Enter')confirmManualBpm()">
+          <div class="bpm-manual-btns">
+            <button onclick="cancelManualBpm()">Cancel</button>
+            <button class="primary" onclick="confirmManualBpm()">Set</button>
+          </div>
         </div>
         <div class="save-row">
           <span class="reset-link" id="resetLink" onclick="resetToSaved()"></span>
@@ -547,6 +562,7 @@ function togglePlay(){if(playing)stopMetronome();else startMetronome();}
 function setLiveBpm(val){
   bpm=Math.max(20,Math.min(300,Math.round(val)));
   document.getElementById('bpmDisplay').textContent=bpm;
+  document.getElementById('bpmDisplay').classList.remove('enterable');
   if(playing){stopMetronome();startMetronome();}
 }
 function updateSaveUi(){
@@ -596,6 +612,42 @@ function setSig(n,btn){
   document.querySelectorAll('.sig-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');beatsPerBar=n;buildDots();buildBars();
   if(playing){stopMetronome();startMetronome();}
+}
+
+// ── MANUAL BPM ENTRY ──
+function onBpmDisplayTap(){
+  if(document.getElementById('bpmDisplay').textContent!=='?')return;
+  openManualBpmEntry();
+}
+function openManualBpmEntry(){
+  document.getElementById('bpmDisplay').style.display='none';
+  document.getElementById('bpmInputWrap').classList.add('show');
+  const inp=document.getElementById('bpmManualInput');
+  inp.value='';inp.focus();
+}
+function cancelManualBpm(){
+  document.getElementById('bpmInputWrap').classList.remove('show');
+  document.getElementById('bpmDisplay').style.display='';
+}
+function confirmManualBpm(){
+  const val=parseInt(document.getElementById('bpmManualInput').value);
+  if(!val||val<20||val>300){cancelManualBpm();return;}
+  const songs=activeSongs();const song=songs[currentIdx];
+  if(song){song.bpm=val;song.savedBpm=val;saveLibrary();}
+  cancelManualBpm();
+  fetchedBpm=val;savedBpm=val;liveBpmBase=val;isDoubled=false;
+  setLiveBpm(val);
+  const ob=document.getElementById('origBtn'),db=document.getElementById('dblBtn');
+  ob.textContent='♩ '+val+' bpm';db.textContent='♪ '+(val*2)+' bpm';
+  ob.classList.add('active');db.classList.remove('active');
+  document.getElementById('doubleToggle').style.display='flex';
+  renderSongList();renderPlaySetlist();
+}
+
+function openBpmEntryForSong(i){
+  loadSongAtIdx(i);switchTab('play');
+  // slight delay so play view renders first
+  setTimeout(openManualBpmEntry,100);
 }
 
 // ── TAP TEMPO ──
@@ -669,6 +721,7 @@ function applyBpmFromSong(song){
     fetchedBpm=null;savedBpm=null;liveBpmBase=null;fineOffset=0;
     tog.style.display='none';
     document.getElementById('bpmDisplay').textContent='?';
+    document.getElementById('bpmDisplay').classList.add('enterable');
     
     document.getElementById('saveBtn').classList.remove('visible');
     document.getElementById('resetLink').classList.remove('visible');
@@ -719,7 +772,7 @@ function renderSongList(){
     const card=document.createElement('div');
     card.className='song-card'+(i===currentIdx?' current':'')+(s.loading?' loading':'');
     const eff=effBpmForSong(s);
-    let bpmStr=s.loading?'…':eff?eff+' bpm':'no bpm';
+    let bpmStr=s.loading?'…':eff?eff+' bpm':'<span style="text-decoration:underline;cursor:pointer" onclick="openBpmEntryForSong('+i+')">tap to set</span>';
     card.innerHTML=`<span class="song-num">${i+1}</span>
       <div class="song-info-col"><div class="song-title-txt">${s.title}</div><div class="song-meta">${s.artist||'&nbsp;'}</div></div>
       <span class="song-bpm-badge">${bpmStr}</span>
