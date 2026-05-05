@@ -162,8 +162,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Mon
   flex:1;
   display:flex;flex-direction:column;
   padding:10px 10px 10px 8px;
-  gap:6px;
+  gap:5px;
   overflow:hidden;
+  min-height:0;
 }
 
 /* Song title area */
@@ -182,16 +183,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Mon
 .bpm-big{font-family:'Playfair Display',serif;font-size:54px;font-weight:700;line-height:1;letter-spacing:-2px;}
 .bpm-unit{font-size:9px;letter-spacing:3px;color:var(--text2);text-transform:uppercase;}
 
-/* Fine nudge row — replaces slider */
-.fine-row{display:flex;align-items:center;gap:6px;width:100%;}
-.fine-label{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
-.fine-btn{font-family:'DM Mono',monospace;font-size:12px;padding:4px 10px;border-radius:var(--r);border:0.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;}
-.fine-btn:active{background:var(--bg2);}
-.fine-val{font-size:11px;color:var(--text3);min-width:28px;}
-
 /* Save row */
-.save-row{display:flex;align-items:center;gap:6px;min-height:22px;width:100%;flex-wrap:wrap;}
-.bpm-note{font-size:10px;color:var(--text3);flex:1;}
+.save-row{display:flex;align-items:center;gap:6px;min-height:20px;width:100%;flex-wrap:wrap;}
 .save-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:var(--r);border:0.5px solid var(--border);background:transparent;color:var(--text);cursor:pointer;display:none;transition:all .15s;white-space:nowrap;}
 .save-btn.visible{display:inline-block;}
 .save-btn.saved{background:#1a7a4a;color:#fff;border-color:#1a7a4a;}
@@ -329,25 +322,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Mon
         <div class="np-artist" id="npArtist"></div>
       </div>
 
-      <!-- BPM with ±1 nudge and fine ±5 buttons -->
       <div class="bpm-block">
         <div class="bpm-row-main">
+          <button class="nudge-btn fine" onclick="nudgeFine(-5)">−5</button>
           <button class="nudge-btn" onclick="nudge(-1)">&#8722;</button>
           <div class="bpm-center">
             <div class="bpm-big" id="bpmDisplay">120</div>
             <div class="bpm-unit">BPM</div>
           </div>
           <button class="nudge-btn" onclick="nudge(1)">&#43;</button>
-        </div>
-        <!-- Fine row: −5  offset  +5 -->
-        <div class="fine-row">
-          <span class="fine-label">Fine</span>
-          <button class="fine-btn" onclick="nudgeFine(-5)">−5</button>
-          <span class="fine-val" id="fineVal">±0</span>
-          <button class="fine-btn" onclick="nudgeFine(5)">+5</button>
+          <button class="nudge-btn fine" onclick="nudgeFine(5)">+5</button>
         </div>
         <div class="save-row">
-          <span class="bpm-note" id="bpmNote"></span>
           <span class="reset-link" id="resetLink" onclick="resetToSaved()"></span>
           <button class="save-btn" id="saveBtn" onclick="saveCurrentBpm()">Save</button>
         </div>
@@ -573,16 +559,16 @@ function updateSaveUi(){
   const note=savedBpm!==null?'Saved: '+savedBpm+' bpm'
     :isDoubled?'8th ×2 ('+fetchedBpm+' → '+bpm+')'
     :fetchedBpm?'Quarter note tempo':'';
-  document.getElementById('bpmNote').textContent=note;
+  
 }
 function nudge(delta){
-  fineOffset=0;document.getElementById('fineVal').textContent='±0';
+  fineOffset=0;
   liveBpmBase=bpm+delta;
   setLiveBpm(liveBpmBase);updateSaveUi();
 }
 function nudgeFine(delta){
   fineOffset=Math.max(-20,Math.min(20,fineOffset+delta));
-  document.getElementById('fineVal').textContent=(fineOffset>=0?'+':'')+fineOffset;
+  
   if(liveBpmBase!==null)setLiveBpm(liveBpmBase+fineOffset);
   updateSaveUi();
 }
@@ -590,18 +576,18 @@ function saveCurrentBpm(){
   const songs=activeSongs();if(!songs[currentIdx])return;
   songs[currentIdx].savedBpm=bpm;songs[currentIdx].savedDoubled=isDoubled;
   savedBpm=bpm;liveBpmBase=bpm;fineOffset=0;
-  document.getElementById('fineVal').textContent='±0';
+  
   const sb=document.getElementById('saveBtn');
   sb.classList.add('saved');sb.textContent='Saved ✓';
   document.getElementById('resetLink').classList.remove('visible');
-  document.getElementById('bpmNote').textContent='Saved: '+bpm+' bpm';
+  
   setTimeout(()=>{sb.classList.remove('saved','visible');sb.textContent='Save';},1800);
   renderSongList();renderPlaySetlist();saveLibrary();
 }
 function resetToSaved(){
   if(savedBpm===null)return;
   setLiveBpm(savedBpm);liveBpmBase=savedBpm;fineOffset=0;
-  document.getElementById('fineVal').textContent='±0';updateSaveUi();
+  updateSaveUi();
 }
 
 // ── TIME SIG ──
@@ -621,9 +607,9 @@ function tap(){
     const gaps=[];for(let i=1;i<tapTimes.length;i++)gaps.push(tapTimes[i]-tapTimes[i-1]);
     const t=Math.round(60000/(gaps.reduce((a,b)=>a+b,0)/gaps.length));
     fetchedBpm=null;savedBpm=null;isDoubled=false;liveBpmBase=t;fineOffset=0;
-    setLiveBpm(t);document.getElementById('fineVal').textContent='±0';
+    setLiveBpm(t);
     document.getElementById('doubleToggle').style.display='none';
-    document.getElementById('bpmNote').textContent='Set by tap';updateSaveUi();
+    updateSaveUi();
   }
 }
 
@@ -645,7 +631,7 @@ function setMode(mode){
   const modeMatchesSaved=song.savedDoubled===isDoubled&&song.savedBpm!=null;
   savedBpm=modeMatchesSaved?song.savedBpm:null;
   liveBpmBase=savedBpm!==null?savedBpm:base;
-  fineOffset=0;document.getElementById('fineVal').textContent='±0';
+  fineOffset=0;
   setLiveBpm(liveBpmBase);
   // Save only the mode choice, not the BPM — user must tap Save for that
   song.savedDoubled=isDoubled;
@@ -668,23 +654,21 @@ function applyBpmFromSong(song){
     if(hasSavedBpm){
       savedBpm=song.savedBpm;liveBpmBase=song.savedBpm;
       setLiveBpm(song.savedBpm);
-      document.getElementById('bpmNote').textContent='Saved: '+song.savedBpm+' bpm';
+      
     } else {
       savedBpm=null;
       // Apply doubling if user previously selected 8th mode
       const base=isDoubled?song.bpm*2:song.bpm;
       liveBpmBase=base;setLiveBpm(base);
-      document.getElementById('bpmNote').textContent=isDoubled
-        ?'8th notes ('+song.bpm+' × 2)':'Quarter notes';
     }
-    fineOffset=0;document.getElementById('fineVal').textContent='±0';
+    fineOffset=0;
     document.getElementById('saveBtn').classList.remove('visible');
     document.getElementById('resetLink').classList.remove('visible');
   } else {
     fetchedBpm=null;savedBpm=null;liveBpmBase=null;fineOffset=0;
     tog.style.display='none';
     document.getElementById('bpmDisplay').textContent='?';
-    document.getElementById('bpmNote').textContent='No BPM — set manually or tap';
+    
     document.getElementById('saveBtn').classList.remove('visible');
     document.getElementById('resetLink').classList.remove('visible');
   }
@@ -699,7 +683,7 @@ function loadSongAtIdx(idx){
     document.getElementById('npArtist').textContent='';
     document.getElementById('bpmDisplay').textContent='—';
     document.getElementById('doubleToggle').style.display='none';
-    document.getElementById('bpmNote').textContent='';
+    
     renderPlaySetlist();return;
   }
   currentIdx=Math.max(0,Math.min(idx,songs.length-1));
