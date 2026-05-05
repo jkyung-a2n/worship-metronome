@@ -611,6 +611,9 @@ function resetToSaved(){
 function setSig(n,btn){
   document.querySelectorAll('.sig-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');beatsPerBar=n;buildDots();buildBars();
+  // Save to current song
+  const songs=activeSongs();
+  if(songs[currentIdx]){songs[currentIdx].savedSig=n;saveLibrary();}
   if(playing){stopMetronome();startMetronome();}
 }
 
@@ -745,6 +748,12 @@ function loadSongAtIdx(idx){
   document.getElementById('npTitle').textContent=s.title;
   document.getElementById('npArtist').textContent=s.artist||'';
   applyBpmFromSong(s);
+  // Restore saved time signature for this song (default 4/4)
+  const sig=s.savedSig||4;
+  beatsPerBar=sig;buildDots();buildBars();
+  document.querySelectorAll('.sig-btn').forEach(b=>{
+    b.classList.toggle('active',parseInt(b.dataset.beats)===sig);
+  });
   document.getElementById('prevBtn').disabled=currentIdx===0;
   document.getElementById('nextBtn').disabled=currentIdx===songs.length-1;
   renderSongList();renderPlaySetlist();
