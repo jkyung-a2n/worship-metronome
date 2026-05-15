@@ -403,21 +403,16 @@ function beep(accent){
   o.start();o.stop(c.currentTime+0.1);
 }
 
-// ── SPEECH ──
-let _ttsReady=false;
-function primeTTS(){
-  if(_ttsReady||!window.speechSynthesis)return;
-  _ttsReady=true;
-  const u=new SpeechSynthesisUtterance('');u.volume=0;
-  window.speechSynthesis.speak(u);
-}
-function speakNum(n){
-  if(!window.speechSynthesis)return;
-  // Always cancel any pending speech — at count-in tempo the previous word is done
-  window.speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(String(n));
-  u.rate=2.0;u.pitch=1.0;u.volume=1;
-  window.speechSynthesis.speak(u);
+// ── COUNT-IN BEEP — high pitch click, no speech ──
+function countBeep(accent){
+  const c=getCtx(),o=c.createOscillator(),g=c.createGain();
+  o.connect(g);g.connect(c.destination);
+  // Beat 1 gets a higher, sharper pitch; other beats slightly lower
+  o.frequency.value=accent?1200:900;
+  o.type='sine';
+  g.gain.setValueAtTime(accent?0.5:0.35,c.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.05);
+  o.start();o.stop(c.currentTime+0.06);
 }
 
 // ── VISUAL ──
@@ -483,7 +478,6 @@ function updateCountInBtn(){
   else{btn.className='countin-btn';btn.textContent='Count In';}
 }
 function triggerCountIn(){
-  primeTTS();
   if(playing){
     // Don't touch the timer — just set the flag.
     // The already-scheduled tick() will fire at the right time and see countInPhase=true.
@@ -499,13 +493,6 @@ function triggerCountIn(){
 
 // ── TICK ──
 // Count-in: speak the number slightly BEFORE the beep so TTS latency
-// is pre-compensated. We schedule a setTimeout 120ms before the beat
-// to fire the speech, then the beep fires on time.
-function scheduleSpeak(num, delayMs){
-  const lead=120; // ms before beat to fire speech
-  const speakDelay=Math.max(0, delayMs-lead);
-  setTimeout(()=>speakNum(num), speakDelay);
-}
 
 function tick(){
   const beatDurMs=(60/bpm)*1000;
@@ -513,8 +500,7 @@ function tick(){
     const isQB=!isDoubled||countInSubTick===0;
     if(isQB){
       const num=countInBeat+1;
-      speakNum(num); // speak immediately — TTS latency IS the pre-compensation
-      beep(num===1);
+      countBeep(num===1);beep(false);
       showCountinNum(num);
     } else {
       beep(false);
@@ -542,7 +528,7 @@ function setPlayIcon(p){
     :'<polygon points="7,4 18,11 7,18"/>';
 }
 function startMetronome(){
-  primeTTS();playing=true;currentBeat=0;
+  playing=true;currentBeat=0;
   document.getElementById('playBtn').classList.add('playing');setPlayIcon(true);
   countInPhase=countInArmed;countInBeat=0;countInSubTick=0;
   updateCountInBtn();tick();
@@ -554,7 +540,6 @@ function stopMetronome(){
   activateDot(-1);clearBars();
   const el=document.getElementById('armEl');if(el)el.style.animationName='none';
   showCountinNum(0);updateCountInBtn();
-  if(window.speechSynthesis)window.speechSynthesis.cancel();
 }
 function togglePlay(){if(playing)stopMetronome();else startMetronome();}
 
